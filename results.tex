@@ -1,0 +1,216 @@
+\documentclass[12pt]{article}
+
+\usepackage[a4paper, margin=2.5cm]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{parskip}
+\usepackage{setspace}
+\usepackage{microtype}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\setlength{\parindent}{1.5em}
+\setlength{\parskip}{0pt}
+\onehalfspacing
+
+\hypersetup{
+    colorlinks=true,
+    urlcolor=black,
+    linkcolor=black
+}
+
+\begin{document}
+
+%% ---------------------------------------------------------------
+%%  TITLE PAGE
+%% ---------------------------------------------------------------
+\begin{titlepage}
+    \centering
+    \vspace*{3cm}
+
+    {\LARGE \textbf{Explainable NLP for Caption Similarity and
+    Hashtag Recommendation}}\\[1.2em]
+    {\large Results (NLP Course)}
+
+    \vspace{3cm}
+
+    \textbf{Group:} A\\[0.8em]
+
+    \textbf{Students:}\\
+    Juan Sebastian Pe\~na\\
+    Saad Ayomide Olowolayemo\\[0.8em]
+
+    \textbf{Instructor:}\\
+    Juan Jos\'e Manjar\'in Colon
+
+    \vfill
+
+    {\large April 2026}
+\end{titlepage}
+
+%% ---------------------------------------------------------------
+%%  RESULTS
+%% ---------------------------------------------------------------
+\section*{Results}
+
+\setlength{\parindent}{1.5em}
+
+An initial dataset of 26,623 raw TikTok posts was retrieved from a
+PostgreSQL database hosted on Supabase. The data was collected using a
+custom TikTok scraper developed in a prior project, publicly available
+at \url{https://github.com/PredictiveSocialMedia/Tik-Tok-Recommendation-System}.
+During preprocessing, 3,976 posts (14.9\%) were excluded for having fewer
+than four non-hashtag characters --- mainly hashtags, URLs, or mentions
+without meaningful linguistic content --- leaving a final dataset of 22,647
+posts. Engagement metrics showed clear right skew, so all four variables
+(likes, comments, views, shares) were log-transformed using
+$y' = \log(1 + y)$. Labels were then assigned via a median split of
+log-transformed view counts, where the dataset median was 13.06, yielding a
+balanced distribution of 11,324 high-engagement and 11,323 low-engagement
+posts and a 50\% baseline accuracy for classifier evaluation.
+
+Two complementary representations of caption text were developed. The
+first used a TF-IDF matrix ($22{,}647 \times 10{,}000$, density 0.16\%)
+to capture lexical patterns via weighted token frequencies, with the
+vocabulary restricted to the 10,000 most common terms. The second employed
+Sentence-BERT (\texttt{all-MiniLM-L6-v2}) to generate 384-dimensional
+semantic embeddings for each caption. UMAP validation reduced the embedding
+space to two dimensions, revealing clear clustering and confirming that the
+representations capture meaningful semantic structure beyond simple word
+overlap. Using both facilitated analysis of lexical and semantic approaches
+without presupposing the superiority of either.
+
+Four baseline classifiers were trained on 80\% of the data (18,117 posts)
+and evaluated on a stratified held-out set of 4,530 posts: Logistic
+Regression with SBERT embeddings, Multinomial Na\"ive Bayes with TF-IDF
+features, and KNN with SBERT representations for $k = 5$ and $k = 10$.
+All models showed comparable performance, with accuracy ranging from 59\%
+to 60\% and macro F1-scores between 0.58 and 0.59
+(Table~\ref{tab:classification}).
+
+\begin{table}[H]
+    \centering
+    \caption{Classification results on the binary engagement label
+    (test set, $n = 4{,}530$). Macro F1 averages precision and recall
+    equally across both classes.}
+    \label{tab:classification}
+    \begin{tabular}{llcc}
+        \toprule
+        \textbf{Model} & \textbf{Feature input} & \textbf{Accuracy}
+        & \textbf{Macro F1} \\
+        \midrule
+        Logistic Regression       & SBERT (384-dim)       & 59\% & 0.59 \\
+        Multinomial Na\"ive Bayes & TF-IDF (10{,}000-dim) & 60\% & 0.58 \\
+        KNN ($k=5$)               & SBERT (384-dim)       & 59\% & 0.59 \\
+        KNN ($k=10$)              & SBERT (384-dim)       & 59\% & 0.58 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Although overall model performance was similar, Na\"ive Bayes showed class
+asymmetry, correctly identifying 79\% of high-engagement posts but only
+41\% of low-engagement ones, suggesting a bias toward vocabulary patterns
+more common in popular posts. Nevertheless, its overall accuracy was
+consistent with the other models.
+
+The comparable performance of SBERT- and TF-IDF-based models suggests the
+bottleneck lies in the information content of captions themselves rather
+than in the choice of representation. On TikTok, engagement is predominantly
+driven by non-textual factors --- audience size, audio, visuals, and platform
+algorithms --- which aligns with the 59--60\% accuracy ceiling. Still, the
+results suggest captions encode patterns related to the \textit{distribution}
+of engagement rather than its exact magnitude, motivating a structural
+analysis based on semantic neighborhoods.
+
+For each post, semantic neighborhoods were constructed using cosine
+similarity in the SBERT embedding space at three sizes ($K = 5, 10, 20$).
+Similarity among nearest neighbors ranged from 0.53 to 0.77, and retrieved
+captions conveyed consistent topical content, confirming that the embedding
+space captures genuine semantic links rather than surface-level matches.
+
+Within each neighborhood, the variance of the four log-transformed
+engagement metrics was calculated and compared to a null distribution from
+1,000 random groups of the same size. Variance reduction was defined as
+the percentage decrease relative to this random baseline. All twelve values
+were positive, ranging from 10.46\% to 13.04\% (Table~\ref{tab:variance}),
+showing that semantic neighborhoods consistently exhibited lower within-group
+variance than random groups. One-sided Mann-Whitney U tests for each
+metric--$K$ combination returned $p \approx 0.0$ across all twelve cases,
+strongly indicating that the observed variance reduction was not due to chance.
+
+\begin{table}[H]
+    \centering
+    \caption{Variance reduction (\%) of semantic neighborhoods relative
+    to random groups of equal size. All twelve Mann-Whitney U tests:
+    $p \approx 0.0$.}
+    \label{tab:variance}
+    \begin{tabular}{lcccc}
+        \toprule
+        $K$ & \textbf{likes\_log} & \textbf{comments\_log}
+        & \textbf{views\_log} & \textbf{shares\_log} \\
+        \midrule
+        5  & 13.04\% & 12.72\% & 12.32\% & 12.46\% \\
+        10 & 12.30\% & 12.74\% & 11.36\% & 11.98\% \\
+        20 & 11.34\% & 11.27\% & 10.46\% & 10.53\% \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+A clear pattern emerged between variance reduction and neighborhood size:
+average reduction decreased from approximately 12.6\% at $K=5$, to 12.1\%
+at $K=10$, and 10.9\% at $K=20$. Smaller neighborhoods captured only the
+most semantically similar posts; larger groups added diversity and raised
+variability. This consistent decay across four independent metrics suggests
+the effect is geometric in nature --- a consequence of how the SBERT
+embedding space is structured --- rather than an artifact of any single
+metric. Levene's test provided additional nuance: at $K=5$ the variance
+spread between semantic and random groups did not differ significantly
+($p > 0.05$ for all metrics), indicating the effect at that scale mainly
+reflects a shift in central tendency, whereas at $K=10$ and $K=20$
+significant differences in dispersion emerged for most metrics, showing
+that structural contrasts between semantic and random groupings grow more
+pronounced as neighborhood size increases.
+
+A major finding pertains to hashtag coverage. Initially only 883 posts
+(3.9\%) contained hashtags from the bridge-table field. By extracting
+hashtags directly from caption text, coverage increased to 100\% ---
+an average of 5.58 tags per post across 36,866 unique tags --- enabling
+the system to operate across the entire corpus. Recommendations were
+generated by aggregating hashtags from the $K$ nearest semantic neighbors
+and ranking them by frequency and average log-engagement.
+
+To assess recommendation quality, five representative captions spanning
+gaming, DIY crafts, music, comedy, and fitness were passed through the
+system; the highest-ranked hashtags consistently matched the topic and tone
+of each query. The system was additionally tested on three unseen captions
+from the fitness, cryptocurrency, and meal-preparation domains, returning
+topically coherent hashtags in each case. Crucially, every recommendation
+is traceable to a specific post in the corpus that is semantically similar
+to the query, making the system interpretable: suggestions are grounded in
+real, identifiable examples rather than generated by an opaque process.
+
+Several limitations must be acknowledged. Caption text captures only part
+of what drives engagement, as the 59--60\% accuracy ceiling makes clear.
+The SBERT model was primarily trained on English, so performance may degrade
+on slang, mixed-language captions, or platform-specific expressions.
+Variance reduction also varies with neighborhood size (roughly 10.5\%--13.0\%
+depending on $K$), requiring practitioners to calibrate $K$ to their
+precision--recall trade-off. Finally, the dataset is a static snapshot;
+the KNN index cannot absorb new posts without a full rebuild. These
+constraints highlight a key distinction: caption text alone cannot
+\textit{predict} engagement precisely, but it does encode meaningful
+semantic links to audience response patterns --- and that structural signal
+is sufficient for effective, interpretable hashtag recommendations even
+without multimodal features.
+
+Future work could address these constraints by adopting multilingual or
+domain-adapted language models, exploring incremental indexing to avoid
+full rebuilds, and incorporating audio, visual, and metadata signals to
+push prediction accuracy beyond the current ceiling. Expanding the dataset
+longitudinally and integrating user-level factors would further improve
+generalisability.
+
+\end{document}

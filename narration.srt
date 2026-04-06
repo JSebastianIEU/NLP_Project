@@ -1,0 +1,101 @@
+1
+00:00:01,000 --> 00:00:13,500
+Semantic Similarity, Engagement Behavior &
+Explainable Hashtag Recommendation on TikTok
+— NLP Project, IE University 2026
+
+2
+00:00:15,000 --> 00:00:26,500
+Do TikTok posts with semantically similar captions
+form neighborhoods with more homogeneous
+engagement profiles?
+
+3
+00:00:27,000 --> 00:00:38,000
+H₀: Proximity carries no engagement signal.
+H₁: Similar content performs more similarly than chance.
+→ H₁ holds — uniformly. p ≈ 0.0 across all 12 tests.
+
+4
+00:00:41,000 --> 00:00:55,500
+26,623 TikTok posts loaded from Supabase (PostgreSQL).
+Normalised schema: videos / snapshots / hashtags.
+Fields: caption, likes, comments, views, shares.
+
+5
+00:00:57,000 --> 00:01:20,000
+After cleaning: 22,647 posts retained.
+Critical fix: bridge table covered only 3.9% of posts.
+Combined extraction → 100% hashtag coverage (5.58 avg/post).
+
+6
+00:01:23,000 --> 00:01:53,000
+Two-phase pipeline: (1) Extract hashtags → label.
+(2) Remove from text → SBERT encodes meaning, not tags.
+Emojis: raw Unicode for SBERT | demojized tokens for TF-IDF.
+Engagement: log(1+y) transformation.
+
+7
+00:01:56,000 --> 00:02:16,500
+SBERT (all-MiniLM-L6-v2) encodes each caption
+into a 384-dim L2-normalised vector.
+cos(u,v) = u·v  after normalisation.
+
+8
+00:02:18,500 --> 00:02:40,000
+UMAP projects 384-dim embeddings to 2D.
+Topical clusters emerge: Fitness / Gaming / Food / Crypto.
+Semantic structure is real — not keyword overlap.
+
+9
+00:02:43,000 --> 00:02:59,500
+FAISS exact cosine KNN index. K ∈ {5, 10, 20}.
+Each post's K nearest semantic neighbors retrieved.
+(Query post excluded from its own neighborhood.)
+
+10
+00:03:01,500 --> 00:03:26,000
+σ²_sem(i,K) = Var({y_j : j ∈ N_K(i)})
+Mann-Whitney U  (alternative='less'):
+H₁: σ²_sem < σ²_rand   →   p ≈ 0.0
+Reduction% = (1 − σ²_sem̄ / σ²_rand̄) × 100
+1,000 random-baseline simulations per K.
+
+11
+00:03:29,000 --> 00:04:00,000
+4 models, all converge at ~60% accuracy:
+  • Logistic Regression (SBERT 384-dim)   59% / F1 0.59
+  • Multinomial Naive Bayes (TF-IDF 10k)  60% / F1 0.58
+  • KNN k=5 (SBERT)                       59% / F1 0.59
+  • KNN k=10 (SBERT)                      59% / F1 0.58
+→ Information ceiling — not a model failure.
+
+12
+00:04:03,000 --> 00:04:17,500
+12 Mann-Whitney U tests → p ≈ 0.0 for all.
+Variance reduction: 10.5% – 13.0%
+H₁ accepted across every metric and every K.
+
+13
+00:04:19,500 --> 00:04:44,000
+Variance reduction heatmap (%):
+         likes  comments  views  shares
+K= 5:   13.04   12.72   12.32   12.46
+K=10:   12.30   12.74   11.36   11.98
+K=20:   11.34   11.27   10.46   10.53
+→ Monotonic decay: tighter K = stronger coherence.
+
+14
+00:04:47,000 --> 00:05:12,500
+Input: 'Just hit a new PR at the gym! Hard work pays off 💪'
+→ SBERT encode → FAISS KNN → aggregate neighbor hashtags
+Recommended: #gymtok · #fitnessforall · #workoutmotivation
+Explainable: every tag traces to real similar posts.
+
+15
+00:05:15,000 --> 00:05:32,000
+Captions don't predict HOW MUCH engagement (~60% ceiling).
+But they do predict HOW CONSISTENTLY — 10–13% variance
+reduction, p ≈ 0.0, all 12 tests.
+The recommender doesn't guess. It learns from posts
+that actually mean what yours means.
