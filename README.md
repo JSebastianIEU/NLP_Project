@@ -1,6 +1,6 @@
 # Do Similar Captions Perform Similarly? Semantic Similarity, Engagement Structure, and Hashtag Recommendation on TikTok
 
-**Authors:** Juan Sebastian Pena, Saad Ayomide Olowolayemo
+**Authors:** Juan Sebastian Pena
 
 **Date:** April 2026
 
@@ -48,7 +48,7 @@
 4. **Open the notebook in VSCode** with the Jupyter extension, or via:
 
    ```bash
-   jupyter notebook NLP_Project_Notebook.ipynb
+   jupyter notebook tiktok-semantic-engagement.ipynb
    ```
 
 ---
@@ -76,6 +76,7 @@ The dataset was collected using a **custom TikTok scraper** built in a prior pro
 
 **Database schema (normalised):**
 
+
 | Table             | Key columns                                                            |
 | ----------------- | ---------------------------------------------------------------------- |
 | `videos`          | `video_id`, `caption`, `created_at`                                    |
@@ -97,12 +98,15 @@ The coverage jump is the most important number here. Before combined extraction,
 ## Project Structure
 
 ```
-NLP_Project/
-├── NLP_Project_Notebook.ipynb    # Main research notebook — all analysis and results
-├── download_data.py              # One-time data download script (requires DB credentials)
-├── tiktok_data.db                # Local SQLite copy of the TikTok dataset
-├── README.md                     # This file — project documentation
-└── requirements.txt              # Pinned Python dependencies
+tiktok-semantic-engagement/
+├── tiktok-semantic-engagement.ipynb                              # Main research notebook
+├── Explainable_NLP_for_Caption_Similarity_and_Hashtag_Recommendation.pdf  # Full paper
+├── download_data.py                                              # Data download script
+├── tiktok_data.db                                                # Local SQLite dataset
+├── figures/                                                      # Visualizations (UMAP, heatmaps, etc.)
+├── README.md                                                     # This file
+├── LICENSE                                                       # MIT License
+└── requirements.txt                                              # Pinned Python dependencies
 ```
 
 ---
@@ -133,10 +137,10 @@ rm  embeddings_cache.npy       # macOS / Linux
 
 ## How to Run
 
-Open `NLP_Project_Notebook.ipynb` in VSCode (with the Jupyter extension) or via:
+Open `tiktok-semantic-engagement.ipynb` in VSCode (with the Jupyter extension) or via:
 
 ```bash
-jupyter notebook NLP_Project_Notebook.ipynb
+jupyter notebook tiktok-semantic-engagement.ipynb
 ```
 
 Then: **Kernel → Restart & Run All**
@@ -151,18 +155,20 @@ The notebook is self-contained: it reads from `tiktok_data.db`, generates embedd
 
 All four models land at the same accuracy ceiling — and that convergence is itself the most telling result.
 
+
 | Model                   | Feature input                     | Accuracy | Macro F1 |
 | ----------------------- | --------------------------------- | -------- | -------- |
-| Logistic Regression     | SBERT `caption_clean` (384-dim)   | **59%**  | **0.59** |
-| Multinomial Naive Bayes | TF-IDF `caption_tfidf` (demojised)| **60%**  | **0.58** |
-| KNN k=5                 | SBERT `caption_clean` (384-dim)   | **59%**  | **0.59** |
-| KNN k=10                | SBERT `caption_clean` (384-dim)   | **59%**  | **0.58** |
+| Logistic Regression     | SBERT`caption_clean` (384-dim)    | **59%**  | **0.59** |
+| Multinomial Naive Bayes | TF-IDF`caption_tfidf` (demojised) | **60%**  | **0.58** |
+| KNN k=5                 | SBERT`caption_clean` (384-dim)    | **59%**  | **0.59** |
+| KNN k=10                | SBERT`caption_clean` (384-dim)    | **59%**  | **0.58** |
 
 Dense (SBERT) and sparse (TF-IDF) representations converge at the same accuracy level. This is not a coincidence — it reflects an information ceiling. Caption text, no matter how it is encoded, does not contain enough signal to predict TikTok engagement reliably. This ceiling actually *strengthens* the structural finding, because the variance reduction cannot be explained by class separation. No model can cleanly separate the classes.
 
 ### Structural Analysis — Variance Reduction vs Random Baseline
 
 All 12 Mann-Whitney U tests: **p = 0.0**. H₁ accepted across every metric and every neighborhood size.
+
 
 | K  | likes_log | comments_log | views_log | shares_log |
 | -- | --------- | ------------ | --------- | ---------- |
@@ -174,7 +180,8 @@ The monotonic decay from K=5 to K=20 makes intuitive sense: as neighborhoods gro
 
 ### Hashtag Coverage Improvement
 
-| Method                                   | Posts with ≥1 hashtag                          |
+
+| Method                                   | Posts with ≥1 hashtag                         |
 | ---------------------------------------- | ---------------------------------------------- |
 | Bridge table field only                  | 3.9% (883 / 22,647)                            |
 | Combined (caption inline + bridge table) | **100%** (22,647 / 22,647; avg 5.58 tags/post) |
@@ -201,26 +208,28 @@ The hashtag recommender surfaces tags that semantically neighboring posts have a
 
 ## Pipeline Documentation
 
+
 | Criterion                         | Notebook Section | Description                                                                                                                                                                 |
 | --------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1. Data Collection & Cleaning** | Parts 1–2       | SQLite load from Supabase snapshot; combined hashtag extraction (3.9% → 100%); URL/mention/hashtag removal; `caption_clean` + `caption_tfidf` columns                       |
-| **2. Preprocessing**              | Part 3           | Log-transformation y′=log(1+y); binary engagement label via median split on `views_log`; TF-IDF (10k features, bigrams, sublinear TF) fitted on demojised text              |
-| **3. Feature Extraction**         | Part 4           | SBERT `all-MiniLM-L6-v2` (384-dim, L2-normalised) on `caption_clean`; UMAP 2D projection                                                                                  |
+| **1. Data Collection & Cleaning** | Parts 1–2       | SQLite load from Supabase snapshot; combined hashtag extraction (3.9% → 100%); URL/mention/hashtag removal;`caption_clean` + `caption_tfidf` columns                       |
+| **2. Preprocessing**              | Part 3           | Log-transformation y′=log(1+y); binary engagement label via median split on`views_log`; TF-IDF (10k features, bigrams, sublinear TF) fitted on demojised text              |
+| **3. Feature Extraction**         | Part 4           | SBERT`all-MiniLM-L6-v2` (384-dim, L2-normalised) on `caption_clean`; UMAP 2D projection                                                                                     |
 | **4. Modelling**                  | Parts 5–7       | FAISS/sklearn KNN for K∈{5,10,20}; Logistic Regression; Multinomial Naive Bayes; KNN classifier; semantic neighborhood structural analysis                                 |
 | **5. Evaluation**                 | Parts 6–7       | Classification reports (macro F1, accuracy) for 4 models; confusion matrices; Mann-Whitney U; Levene's test; variance reduction heatmap; 1,000-simulation null distribution |
-| **6. Deployment**                 | Part 9           | `recommend_for_new_caption()` — online inference for unseen captions; live demo (fitness, crypto, meal prep); productionisation guide (Streamlit / FastAPI / batch)          |
+| **6. Deployment**                 | Part 9           | `recommend_for_new_caption()` — online inference for unseen captions; live demo (fitness, crypto, meal prep); productionisation guide (Streamlit / FastAPI / batch)        |
 | **7. Code Documentation**         | This README      | Setup, pipeline map, results summary, usage instructions, dependency specification                                                                                          |
 
 ---
 
 ## Limitations
 
+
 | Limitation                  | Impact                                                                                                                                                         |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Non-textual confounders** | Follower count, audio/music, thumbnail, posting time, and algorithmic amplification dominate engagement — none appear in caption text                          |
+| **Non-textual confounders** | Follower count, audio/music, thumbnail, posting time, and algorithmic amplification dominate engagement — none appear in caption text                         |
 | **60% accuracy ceiling**    | An information limit, not a model limit; both dense (SBERT) and sparse (TF-IDF) representations converge here, confirming the bottleneck is in the data itself |
 | **Multilingual content**    | `all-MiniLM-L6-v2` is primarily English-trained; non-English captions and TikTok-specific slang are embedded less reliably                                     |
-| **K sensitivity**           | Variance reduction ranges from ~10.5% (K=20, views) to ~13.0% (K=5, likes); practitioners need to choose K based on their precision vs coverage preference    |
+| **K sensitivity**           | Variance reduction ranges from ~10.5% (K=20, views) to ~13.0% (K=5, likes); practitioners need to choose K based on their precision vs coverage preference     |
 | **Selection bias**          | 3,976 posts (14.9%) dropped for having fewer than 4 clean characters — the dataset skews toward posts with genuine descriptive content                        |
 | **Static corpus**           | KNN index is fixed; new posts require full index rebuilds; at scale, approximate nearest-neighbor structures (FAISS IVF) would be needed                       |
 
@@ -240,16 +249,18 @@ Without step 2, SBERT would encode hashtag-string similarity rather than topical
 
 ### Emoji handling strategy
 
+
 | Column          | Emoji treatment               | Used for                                                |
 | --------------- | ----------------------------- | ------------------------------------------------------- |
 | `caption_clean` | Raw Unicode emojis preserved  | SBERT (model handles Unicode natively)                  |
-| `caption_tfidf` | Demojised via `emoji.demojize`| TF-IDF (emoji tokens become countable vocabulary items) |
+| `caption_tfidf` | Demojised via`emoji.demojize` | TF-IDF (emoji tokens become countable vocabulary items) |
 
 ---
 
 ## Dependencies
 
 See `requirements.txt` for the full pinned list. Key packages:
+
 
 | Package                          | Purpose                                                                 |
 | -------------------------------- | ----------------------------------------------------------------------- |

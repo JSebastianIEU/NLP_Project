@@ -39,10 +39,6 @@ coverage.xml
 
 # Project specific
 embeddings_cache.npy
-Introduction.pdf
-Literature Review.pdf
-Methodology.pdf
-Proposal.pdf
 *.npy
 *.pkl
 *.pickle
